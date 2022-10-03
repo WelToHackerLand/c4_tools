@@ -1,8 +1,8 @@
 # Overview 
 Provide some tools to help warden in reading issue from [code4rena](https://code4rena.com/) 
 * Sort all reports of specified contest following the order of [leaderboard](https://code4rena.com/leaderboard/)
-    * **Current Status**: This version just support get all the data through github API --> too slow 
-    * **Upcomming Feature**: Let user download the finding repo and just sort !!! 
+    * **Updated**: This version just support get all the data through github API --> too slow 
+    * **Updated**: Let user download the finding repo and just sort !!! 
 
 # Installation 
 ```
@@ -15,6 +15,10 @@ You'll need to set the following environment variables:
 Just use when you want to access private finding repos of code4rena. Make sure you grant a proper access to this token. (Tool just require scope repo)
 
 # Running 
+For usage 
+```
+ts-node ReportRank-ts --help 
+```
 
 ```
 ts-node ReportRank.ts -r <repo>
@@ -22,7 +26,7 @@ ts-node ReportRank.ts -r <repo>
 
 # Example
 ```
-ts-node ReportRank.ts -r 2022-09-y2k-finance-findings
+ts-node ReportRank.ts -r 2022-09-y2k-finance-findings 
 ```
 
 The sorted issues will look like this: 
