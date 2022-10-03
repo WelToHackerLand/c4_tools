@@ -1,8 +1,11 @@
-import axios from "axios";
 import * as dotenv from "dotenv";
-import { Octokit } from "@octokit/core";
+import * as fs from 'fs';
+
+import axios from "axios";
 import Excel from 'exceljs';
 import path from 'path';
+
+import { Octokit } from "@octokit/core";
 import { Command } from 'commander';
 
 dotenv.config();
@@ -66,7 +69,32 @@ const getListReportsWithRisk = async(findingRepo: string): Promise<{ [key:string
   return reportsWithRisk;
 }
 
-const exportToExcelFile = async(findingRepo: string, reportsWithRisk: { [key:string]: Array<ReportWithRiskInfo> }, awardOf: { [key:string]: number } ) => {
+const getListReportsWithRiskLocal = async(findingRepo: string): Promise<{ [key:string]: Array<ReportWithRiskInfo> }> => {
+  const reportsWithRisk: { [key:string]: Array<ReportWithRiskInfo> } = {};
+
+  fs.readdirSync(findingRepo).forEach((file) => {
+    if (!file.endsWith(".json")) {
+      return;
+    }
+
+    const filePath = findingRepo + "/" + file;
+    const fileContent = JSON.parse(fs.readFileSync(filePath, 'utf8').toString());
+
+    const handle = fileContent.handle;
+    const risk = fileContent.risk;
+    const url = fileContent.issueUrl;
+    const id = fileContent.issueId;
+
+    if (typeof reportsWithRisk[risk] == 'undefined' || reportsWithRisk[risk].length == 0) {
+      reportsWithRisk[risk] = new Array();
+    }
+    reportsWithRisk[risk].push(new ReportWithRiskInfo(handle, url, id));
+  });
+
+  return reportsWithRisk;
+}
+
+const exportToExcelFile = async(contestName: string, reportsWithRisk: { [key:string]: Array<ReportWithRiskInfo> }, awardOf: { [key:string]: number } ) => {
   const workbook = new Excel.Workbook();
   const TableStructure = [
     { key: 'name', header: 'Name' },
@@ -104,11 +132,11 @@ const exportToExcelFile = async(findingRepo: string, reportsWithRisk: { [key:str
     }
   });
 
-  const exportPath = path.resolve(__dirname, `${findingRepo}_rank.xlsx`);
+  const exportPath = path.resolve(__dirname, `${contestName}_rank.xlsx`);
   await workbook.xlsx.writeFile(exportPath);
 }
 
-const parseCommandLine = async(): Promise<string> => {
+const parseCommandLine = async(): Promise<[string, string, string]> => {
   const program = new Command();
 
   program
@@ -119,26 +147,38 @@ const parseCommandLine = async(): Promise<string> => {
   // program.command('sortOnline')
   program
     .description('Get issues through github api and sort it follow the c4 leaderboard')
-    .option('-r, --repo <finding-repo-name>', 'name of finding repo on code4rena repo');
+    .option('-n, --name <contest-name>', 'name of contest')
+    .option('-r, --repo <finding-repo-name>', 'name of finding repo on code4rena repo')
+    .option('-l, --local <data-location>', 'location of data on local machine');
 
   program.parse(process.argv);
 
   const options = program.opts();
-  return options.repo;
+  return [options.name, options.repo, options.local];
 }
 
 const main = async() => {
-  const findingRepo = await parseCommandLine();
-  console.log(findingRepo);
+  // getListReportsWithRiskLocal("./repos/2022-08-foundation-findings/data");
+
+  const [contestName, findingRepo, localData] = await parseCommandLine();
+  console.log("contestName: ", contestName);
+  console.log("findingRepo: ", findingRepo);
+  console.log("localData: ", localData);
 
   console.log("load leaderboard ...");
   const awardOf = await getAwardForHandles();
 
   console.log("load reports of contest ...");
-  const reportsWithRisk = await getListReportsWithRisk(findingRepo);
+  let reportsWithRisk: { [key:string]: Array<ReportWithRiskInfo> };
+  if (localData) {
+    reportsWithRisk = await getListReportsWithRiskLocal(localData);
+  }
+  else {
+    reportsWithRisk = await getListReportsWithRisk(findingRepo);
+  }
 
   console.log("export to execel file ...");
-  await exportToExcelFile(findingRepo, reportsWithRisk, awardOf);
+  await exportToExcelFile(contestName, reportsWithRisk, awardOf);
 }
 
 main();
